@@ -1,0 +1,5 @@
+__pycache__
+.git
+.pytest_cache
+*.mp3
+.env
