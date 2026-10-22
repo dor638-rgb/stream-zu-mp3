@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StreamZuMP3 Online</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0b111b;color:#e8eef8;font:16px system-ui,sans-serif}
+main{max-width:700px;margin:55px auto;padding:20px}h1{font-size:clamp(35px,7vw,62px);letter-spacing:-2px}h1 span{color:#9aefcb}
+p{color:#a5b5c3;line-height:1.6}section{background:#142130;border:1px solid #30465a;border-radius:20px;padding:28px;margin:24px 0}
+label{display:block;margin:18px 0 8px;font-weight:650}input,select{width:100%;border:1px solid #416077;background:#0a1522;color:white;padding:15px;border-radius:10px;font-size:15px}
+button,a.button{display:inline-block;background:#9aefcb;border:0;color:#082719;padding:15px 20px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:750;margin:20px 10px 0 0;text-decoration:none}button:disabled{opacity:.5}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:500px){.cols{grid-template-columns:1fr}}#panel{display:none}
+</style></head><body><main><div>♫ STREAMZUMP3 · ONLINE</div><h1>Streams rein.<br><span>MP3 raus.</span></h1>
+<p>Erlaubte, nicht kopiergeschützte direkte Audiostreams online aufnehmen und herunterladen. Für Radio, Icecast und HLS.</p>
+<section><form id="form"><label for="url">Stream-Adresse</label><input id="url" type="url" placeholder="https://beispiel.de/audio.mp3" required>
+<div class="cols"><div><label for="quality">MP3-Qualität</label><select id="quality"><option>128</option><option selected>192</option><option>256</option><option>320</option></select></div>
+<div><label for="minutes">Aufnahmezeit</label><select id="minutes"><option>1</option><option>3</option><option selected>5</option><option>10</option><option>15</option><option>30</option></select></div></div>
+<button id="start">♫ In MP3 umwandeln</button></form></section>
+<section id="panel"><h2 id="state">Aufnahme läuft</h2><p id="message">Verbinde ...</p><button id="stop">Aufnahme stoppen</button><a id="download" class="button" hidden>↓ MP3 herunterladen</a></section>
+<p><small>Nur zur privaten Nutzung. Eine Aufnahme gleichzeitig. Temporäre Dateien können nach einer Stunde gelöscht werden. DRM-geschützte Quellen werden nicht unterstützt. Nur Streams verwenden, die du aufnehmen darfst.</small></p></main>
+<script>
+let id=null,timer=null;const el=x=>document.getElementById(x);
+async function api(url,opts){const r=await fetch(url,opts);let d;try{d=await r.json()}catch{d={detail:"Serverfehler"}}if(!r.ok)throw Error(d.detail||"Fehler");return d}
+function show(text,s){el("panel").style.display="block";el("message").textContent=text;el("state").textContent=s==="done"?"Fertig":s==="error"?"Fehler":"Aufnahme läuft";el("stop").hidden=s!=="running";el("download").hidden=s!=="done";el("start").disabled=s==="running"}
+async function poll(){try{const d=await api("/api/jobs/"+id);show(d.message,d.status);if(d.status==="done")el("download").href=d.download;if(d.status!=="running"){clearInterval(timer);timer=null}}catch(e){show(e.message,"error");clearInterval(timer);timer=null}}
+el("form").onsubmit=async(e)=>{e.preventDefault();clearInterval(timer);show("Starte Aufnahme ...","running");try{let d=await api("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:el("url").value,quality:+el("quality").value,minutes:+el("minutes").value})});id=d.id;timer=setInterval(poll,1500);poll()}catch(e){show(e.message,"error")}};
+el("stop").onclick=async()=>{if(!id)return;try{await api("/api/jobs/"+id+"/stop",{method:"POST"});el("message").textContent="Stoppe Aufnahme ..."}catch(e){el("message").textContent=e.message}};
+</script></body></html>
