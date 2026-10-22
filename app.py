@@ -1,9 +1,9 @@
 from __future__ import annotations
-import hmac, ipaddress, os, socket, subprocess, tempfile, threading, time, uuid
+import hmac, hashlib, ipaddress, os, socket, subprocess, tempfile, threading, time, uuid
 from pathlib import Path
 from urllib.parse import urlsplit
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import FastAPI, HTTPException, Depends, Request as HttpRequest
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -22,11 +22,70 @@ class Request(BaseModel):
     minutes: int = Field(default=5, ge=1, le=30)
     name: str = Field(default="Aufnahme", max_length=80)
 
-def auth(creds: HTTPBasicCredentials | None = Depends(basic)):
+
+LOGIN_HTML = """<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anmelden · StreamZuMP3</title><style>
+*{box-sizing:border-box}body{background:#0b111b;color:#eaf5f8;font:16px system-ui,sans-serif;margin:0}
+main{max-width:460px;margin:12vh auto;padding:25px}
+h1{font-size:38px;letter-spacing:-1px;margin:15px 0}h1 span{color:#9aefcb}
+p{color:#b6c6d0;line-height:1.55}form{background:#142130;padding:27px;border-radius:18px;border:1px solid #34495b}
+label{display:block;margin:17px 0 8px;font-weight:600}
+input{width:100%;padding:14px;border-radius:10px;border:1px solid #456378;background:#081522;color:white;font-size:16px}
+button{background:#9aefcb;color:#0b261a;border:0;border-radius:10px;font-size:16px;font-weight:700;padding:15px;margin-top:23px;width:100%}
+#error{color:#ffb3a6;min-height:25px}
+</style></head><body><main><p>♫ STREAMZUMP3 ONLINE</p><h1>Willkommen <span>zurück.</span></h1>
+<p>Mit deinen Zugangsdaten anmelden, um Audiostreams als MP3 aufzunehmen.</p>
+<form id="login"><label for="username">Benutzername</label><input id="username" autocomplete="username" value="stream" required>
+<label for="password">Passwort</label><input id="password" type="password" autocomplete="current-password" required>
+<button type="submit" id="submit">Anmelden</button><p role="alert" id="error"></p></form>
+</main><script>
+document.getElementById('login').addEventListener('submit',async function(e){
+e.preventDefault();
+var button=document.getElementById('submit'),error=document.getElementById('error');
+button.disabled=true;error.textContent='';
+try{
+var response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({username:document.getElementById('username').value,password:document.getElementById('password').value})});
+if(!response.ok){if(response.status===401)throw new Error('Benutzername oder Passwort ist falsch.');throw new Error('Anmeldung nicht möglich (HTTP '+response.status+').');}
+location.replace('/');
+}catch(ex){error.textContent=ex.message;button.disabled=false;}
+});
+</script></body></html>"""
+
+class LoginRequest(BaseModel):
+    username: str = Field(max_length=100)
+    password: str = Field(max_length=250)
+
+def valid_credentials(username: str, password: str) -> bool:
+    return bool(PASSWORD) and hmac.compare_digest(username, USERNAME) and hmac.compare_digest(password, PASSWORD)
+
+def make_session() -> str:
+    ts = str(int(time.time()))
+    signature = hmac.new(PASSWORD.encode(), (USERNAME + ":" + ts).encode(), hashlib.sha256).hexdigest()
+    return ts + "." + signature
+
+def valid_session(token: str | None) -> bool:
+    if not token or not PASSWORD:
+        return False
+    try:
+        ts, sig = token.split(".", 1)
+        if not ts.isdigit() or len(ts) > 12 or not (0 <= time.time() - int(ts) < 12 * 3600):
+            return False
+        expected = hmac.new(PASSWORD.encode(), (USERNAME + ":" + ts).encode(), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(sig, expected)
+    except (TypeError, ValueError):
+        return False
+
+def is_authenticated(request: HttpRequest, creds: HTTPBasicCredentials | None) -> bool:
+    return valid_session(request.cookies.get("stream_session")) or (
+        creds is not None and valid_credentials(creds.username, creds.password)
+    )
+
+def auth(request: HttpRequest, creds: HTTPBasicCredentials | None = Depends(basic)):
     if not PASSWORD:
         raise HTTPException(503, "APP_PASSWORD fehlt")
-    if not creds or not (hmac.compare_digest(creds.username, USERNAME) and hmac.compare_digest(creds.password, PASSWORD)):
-        raise HTTPException(401, "Anmeldung erforderlich", headers={"WWW-Authenticate": 'Basic realm="StreamZuMP3"'})
+    if not is_authenticated(request, creds):
+        raise HTTPException(401, "Bitte erneut anmelden")
 
 def public_url(url):
     p = urlsplit(url.strip())
@@ -79,12 +138,32 @@ def worker(id, req):
     finally:
         with lock: j["process"] = None
 
+@app.post("/api/login")
+def login(creds: LoginRequest):
+    if not PASSWORD:
+        raise HTTPException(503, "APP_PASSWORD fehlt")
+    if not valid_credentials(creds.username, creds.password):
+        raise HTTPException(401, "Falsche Zugangsdaten")
+    response = JSONResponse({"ok": True})
+    response.set_cookie("stream_session", make_session(), max_age=12*3600, httponly=True, secure=True, samesite="strict", path="/")
+    return response
+
+@app.post("/api/logout")
+def logout():
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("stream_session", path="/")
+    return response
+
 @app.get("/health")
 def health(): return {"ok":True}
 
 @app.get("/")
-def index(_:None = Depends(auth)):
-    return HTMLResponse(Path(__file__).with_name("index.html").read_text(encoding="utf-8"))
+def index(request: HttpRequest, creds: HTTPBasicCredentials | None = Depends(basic)):
+    if not PASSWORD:
+        raise HTTPException(503, "APP_PASSWORD fehlt")
+    if not is_authenticated(request, creds):
+        return HTMLResponse(LOGIN_HTML, headers={"Cache-Control": "no-store"})
+    return HTMLResponse(Path(__file__).with_name("index.html").read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
 
 @app.post("/api/jobs", status_code=202)
 def start(req:Request, _:None = Depends(auth)):
