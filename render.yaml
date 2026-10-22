@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: stream-zu-mp3
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_PASSWORD
+        sync: false
+      - key: APP_USERNAME
+        value: stream
