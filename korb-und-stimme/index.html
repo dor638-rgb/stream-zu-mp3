@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f8f3">
+  <meta name="description" content="Deine Einkaufsliste mit Spracheingabe und gespeicherten Sprachnotizen.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" href="./icon-192.png">
+  <title>Korb & Stimme – Einkaufsliste</title>
+  <style>
+    :root { color-scheme:light; --bg:#f5f7f2; --surface:#ffffff; --ink:#182d2a; --muted:#6e817a; --line:#e3eae2; --green:#117c5e; --green-2:#e2f4e9; --orange:#fff1d6; --shadow:0 12px 40px rgba(24,54,39,.065); }
+    * { box-sizing:border-box; }
+    html { -webkit-text-size-adjust:100%; }
+    body { font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; margin:0; background:var(--bg); color:var(--ink); }
+    button,input { font:inherit; }
+    button { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    button:focus-visible,input:focus-visible { outline:3px solid #81cbb2; outline-offset:3px; }
+    .app { width:min(100%,780px); margin:auto; padding:32px clamp(16px,4vw,32px) 90px; }
+    .top { display:flex; align-items:center; gap:13px; margin-bottom:27px; }
+    .brand-icon { display:grid; place-items:center; width:52px; height:52px; flex:0 0 52px; border-radius:18px; background:var(--green); color:#fff; box-shadow:0 9px 24px #117c5e33; }
+    .brand-icon svg { width:27px; height:27px; }
+    .brand h1 { font-size:1.47rem; font-weight:780; letter-spacing:-.75px; margin:0 0 3px; line-height:1.1; }
+    .brand p { margin:0; font-size:.86rem; color:var(--muted); }
+    .top-side { margin-left:auto; }
+    .icon-btn { height:41px; width:41px; padding:0; border:1px solid var(--line); border-radius:14px; display:grid; place-items:center; background:white; color:var(--ink); }
+    .icon-btn svg { height:19px; width:19px; }
+    .hero { background:linear-gradient(135deg,#0f745a,#168465); color:white; border-radius:26px; padding:24px; box-shadow:0 16px 34px #167d5b22; position:relative; overflow:hidden; }
+    .hero:after { content:""; position:absolute; right:-24px; bottom:-85px; width:220px; height:220px; border:36px solid #ffffff11; border-radius:50%; pointer-events:none; }
+    .hero .eyebrow { text-transform:uppercase; font-size:.68rem; font-weight:750; letter-spacing:1.7px; opacity:.76; }
+    .hero-main { display:flex; gap:16px; align-items:flex-end; margin-top:13px; justify-content:space-between; position:relative; z-index:1; }
+    .hero h2 { font-size:clamp(1.65rem,5vw,2.1rem); margin:0; letter-spacing:-.9px; }
+    .hero p { margin:7px 0 0; font-size:.91rem; opacity:.82; }
+    .hero .count { border:1px solid #ffffff40; border-radius:16px; background:#ffffff19; min-width:84px; padding:11px 12px; text-align:center; }
+    .count strong { display:block; font-size:1.46rem; line-height:1.1; }
+    .count span { font-size:.72rem; opacity:.87; }
+    .progress { height:8px; border-radius:99px; background:#ffffff3b; overflow:hidden; margin-top:22px; position:relative; z-index:1; }
+    .progress-bar { width:0%; height:100%; background:#b1f3d1; border-radius:99px; transition:width .3s ease; }
+    .panel { background:var(--surface); border:1px solid #ebefea; border-radius:24px; box-shadow:var(--shadow); padding:20px; margin-top:18px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:13px; gap:10px; }
+    .panel-title { font-weight:800; font-size:1.06rem; letter-spacing:-.25px; margin:0; }
+    .tiny { font-size:.76rem; color:var(--muted); }
+    .entry { display:flex; gap:9px; }
+    .input { width:100%; min-width:0; background:#f8faf7; border:1px solid #dfe7df; border-radius:14px; padding:14px 15px; color:var(--ink); font-size:1rem; outline:none; }
+    .input::placeholder { color:#96a59e; }
+    .input:focus { border-color:#65b79c; box-shadow:0 0 0 3px #d4f2e3; }
+    .add-btn { display:flex; align-items:center; justify-content:center; gap:7px; color:white; background:var(--green); padding:0 20px; border:0; font-weight:740; border-radius:14px; white-space:nowrap; }
+    .add-btn svg { width:20px; height:20px; }
+    .add-btn:hover { background:#0b6d50; }
+    .hint { margin:10px 1px 0; font-size:.76rem; color:var(--muted); }
+    .voice-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px; }
+    .voice-btn { display:flex; align-items:center; justify-content:center; gap:9px; min-height:53px; padding:10px 9px; border:1px solid #a2d7c1; background:var(--green-2); color:#076c4b; font-size:.85rem; font-weight:750; border-radius:16px; }
+    .voice-btn.secondary { border-color:var(--line); color:var(--ink); background:#f8faf7; }
+    .voice-btn svg { width:19px; height:19px; flex-shrink:0; }
+    .voice-btn.active { background:#fff0ed; color:#c23c38; border-color:#ffd3c9; animation:pulseBorder 1.6s infinite; }
+    @keyframes pulseBorder { 50%{ box-shadow:0 0 0 5px #f3a69a2e;} }
+    .list-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:30px 3px 12px; }
+    .list-head h2 { font-size:1.14rem; font-weight:820; margin:0; letter-spacing:-.4px; }
+    .list-head button { border:0; background:transparent; color:var(--green); font-size:.81rem; font-weight:690; padding:7px 1px; }
+    .list { display:flex; flex-direction:column; gap:9px; }
+    .item { background:white; display:flex; gap:12px; align-items:center; padding:13px 14px; border-radius:17px; border:1px solid #e8eee7; min-height:64px; box-shadow:0 4px 15px #153e2610; }
+    .check { width:27px; height:27px; flex:0 0 27px; display:grid; place-items:center; border:2px solid #b8c7be; border-radius:9px; background:white; color:white; padding:0; }
+    .check svg { width:17px; height:17px; }
+    .item.done .check { background:#198361; border-color:#198361; }
+    .item-main { min-width:0; flex:1; }
+    .item-name { font-size:.97rem; font-weight:710; overflow-wrap:anywhere; line-height:1.3; }
+    .done .item-name { text-decoration:line-through; color:#94a49a; }
+    .item-tag { display:inline-block; margin-top:5px; color:#74887c; font-size:.73rem; }
+    .item-qty { background:#edf5ef; color:#30624d; font-size:.75rem; font-weight:750; border-radius:9px; padding:6px 9px; text-align:center; max-width:95px; overflow-wrap:anywhere; }
+    .item.done .item-qty { background:#f2f4f1; color:#9ca8a0; }
+    .remove-btn { border:0; background:none; display:grid; place-items:center; width:30px; height:32px; padding:4px; margin-left:0; color:#a5b0a8; border-radius:9px; }
+    .remove-btn:hover { color:#bc514a; background:#fff0ef; }
+    .remove-btn svg { width:18px; height:18px; }
+    .empty { padding:30px 18px; background:white; border:1px dashed #ccdacf; border-radius:20px; text-align:center; color:var(--muted); }
+    .empty .emoji { display:block; font-size:2rem; margin-bottom:10px; }
+    .empty strong { display:block; color:var(--ink); font-size:1rem; }
+    .empty p { margin:6px 0 0; line-height:1.5; font-size:.86rem; }
+    .purchased { margin-top:20px; }
+    .purchased .item { opacity:.72; }
+    .memo-heading { display:flex; align-items:center; justify-content:space-between; }
+    .memo-info { color:var(--muted); font-size:.8rem; margin:5px 0 15px; line-height:1.5; }
+    .memo-empty { text-align:center; font-size:.83rem; color:#85988d; background:#f7faf7; border:1px dashed #dbe7dc; border-radius:14px; padding:17px 12px; }
+    .memo-item { display:flex; gap:10px; align-items:center; background:#f8faf7; border-radius:14px; padding:10px; margin-top:8px; }
+    .memo-icon { width:36px; height:36px; border-radius:12px; background:#e2f2e7; color:var(--green); display:grid; place-items:center; flex:0 0 36px; }
+    .memo-icon svg { width:18px; height:18px; }
+    .memo-body { flex:1; min-width:0; }
+    .memo-body strong { display:block; font-size:.79rem; font-weight:720; margin-bottom:6px; }
+    .memo-body audio { width:100%; height:33px; }
+    .memo-delete { border:0; background:transparent; color:#9caaa0; padding:8px 4px; flex:0 0 26px; }
+    .memo-delete svg { width:18px; height:18px; }
+    .bottom { margin-top:25px; display:flex; flex-wrap:wrap; justify-content:center; gap:15px; }
+    .bottom button { background:transparent; border:0; color:#59786a; display:flex; align-items:center; gap:6px; font-size:.83rem; font-weight:680; padding:10px; }
+    .bottom svg { width:17px; height:17px; }
+    .privacy { text-align:center; font-size:.74rem; color:#93a49b; margin:16px auto 0; max-width:480px; line-height:1.5; }
+    .toast { position:fixed; z-index:50; left:50%; bottom:24px; transform:translate(-50%,24px); background:#183b2d; color:white; padding:12px 18px; font-size:.88rem; border-radius:13px; width:max-content; max-width:min(92vw,500px); box-shadow:0 14px 35px #132f2460; opacity:0; pointer-events:none; transition:opacity .18s,transform .18s; text-align:center; }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    .sr-only { position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden; }
+    @media(max-width:480px) { .app{padding-top:20px;} .panel{padding:16px;} .hero{padding:20px;} .voice-btn{font-size:.76rem; gap:6px;} .voice-btn svg{width:18px;height:18px;} .brand h1{font-size:1.29rem;} .add-btn{padding:0 15px;} .hide-mobile{display:none;} }
+    @media(prefers-reduced-motion:reduce){ *,*::before,*::after { animation:none!important; transition:none!important; } }
+  </style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div class="brand-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 2.2 11h13.6L21 9H3Z"/><path d="m8 9 4-6 4 6M9 13v3m6-3v3"/></svg>
+    </div>
+    <div class="brand"><h1>Korb & Stimme</h1><p>Deine smarte Einkaufsliste</p></div>
+    <button class="icon-btn top-side" id="shareTop" type="button" aria-label="Einkaufsliste teilen" title="Einkaufsliste teilen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4m-6.6 7 6.6 4.4"/></svg>
+    </button>
+  </header>
+
+  <section class="hero" aria-label="Einkaufsfortschritt">
+    <div class="eyebrow">Dein Einkauf im Blick</div>
+    <div class="hero-main"><div><h2 id="heroHeading">Alles im Blick.</h2><p id="heroSubtitle">Deine Liste wartet auf die ersten Produkte.</p></div><div class="count"><strong id="openCount">0</strong><span>noch offen</span></div></div>
+    <div class="progress" role="progressbar" aria-label="Einkaufsfortschritt" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+  </section>
+
+  <section class="panel" aria-labelledby="addTitle">
+    <div class="panel-head"><h2 class="panel-title" id="addTitle">Was brauchst du?</h2><span class="tiny">Schnell hinzufügen</span></div>
+    <form class="entry" id="addForm"><label class="sr-only" for="productInput">Produkte eingeben</label><input class="input" id="productInput" type="text" autocomplete="off" maxlength="500" placeholder="z. B. 2x Milch, Eier, Brot" required><button class="add-btn" aria-label="Zur Liste hinzufügen" type="submit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="hide-mobile">Hinzufügen</span></button></form>
+    <p class="hint" id="inputHint">Mehrere Produkte? Einfach mit Komma oder „und“ trennen.</p>
+    <div class="voice-row">
+      <button class="voice-btn" id="dictateBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"/></svg><span id="dictateLabel">Einkauf diktieren</span></button>
+      <button class="voice-btn secondary" id="recordBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg><span id="recordLabel">Sprachnotiz aufnehmen</span></button>
+    </div>
+  </section>
+
+  <section aria-labelledby="activeTitle"><div class="list-head"><h2 id="activeTitle">Noch einkaufen <span id="activeTotal" style="font-size:.8rem;color:#82988c;font-weight:600"></span></h2></div><div class="list" id="activeList"></div></section>
+  <section class="purchased" id="doneSection" aria-labelledby="doneTitle" hidden><div class="list-head"><h2 id="doneTitle">Schon im Korb <span id="doneTotal" style="font-size:.8rem;color:#82988c;font-weight:600"></span></h2><button type="button" id="clearDone">Erledigte entfernen</button></div><div class="list" id="doneList"></div></section>
+
+  <section class="panel" aria-labelledby="memoTitle"><div class="memo-heading"><h2 class="panel-title" id="memoTitle">Deine Sprachnotizen</h2><span class="tiny" id="memoCount">0 Notizen</span></div><p class="memo-info">Nimm Erinnerungen auf und spiele sie später hier wieder ab. Die Aufnahmen bleiben auf diesem Gerät.</p><div id="memoList"><div class="memo-empty">Noch keine Aufnahme vorhanden.</div></div></section>
+
+  <div class="bottom"><button id="shareBottom" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m-4 4 4-4 4 4M5 14v6h14v-6"/></svg>Liste teilen</button><button id="exportBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4"/></svg>Backup herunterladen</button><button id="importBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9m-4 4 4-4 4 4M5 7V3h14v4"/></svg>Backup laden</button></div>
+  <input class="sr-only" type="file" id="importFile" accept=".json,application/json">
+  <p class="privacy">Privat und ohne Konto. Produkte und Aufnahmen werden nur auf diesem Gerät gespeichert. Ein Backup schützt vor Datenverlust.</p>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+(()=>{
+  'use strict';
+  const STORE_KEY='korb-und-stimme-items-v1';
+  const $=id=>document.getElementById(id);
+  const productInput=$('productInput');
+  const uid=()=>typeof crypto!=='undefined' && crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+  const icons={check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m5 12 4 4L19 6"/></svg>',trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',audio:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4m4-8v12m4-15v18m4-14v10m4-7v4"/></svg>'};
+  const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let items=[];
+  try {const parsed=JSON.parse(localStorage.getItem(STORE_KEY)||'[]'); if(Array.isArray(parsed)) items=parsed.filter(x=>x&&typeof x.name==='string').map(x=>({id:String(x.id||uid()),name:x.name.slice(0,150),qty:String(x.qty||'').slice(0,25),category:String(x.category||'Sonstiges').slice(0,40),done:!!x.done}));}catch(e){}
+  let toastTimer;
+  function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3500);}
+  function save(){try{localStorage.setItem(STORE_KEY,JSON.stringify(items));}catch(e){toast('Speichern nicht möglich. Bitte Browser-Speicher prüfen.');}}
+  const categoryRules=[
+    ['Obst & Gemüse', /apfel|äpfel|banane|tomate|gurke|salat|paprika|karotte|möhre|kartoffel|zwiebel|knoblauch|zitrone|orange|traube|erdbeer|brokkoli|avocado|pilz|spinat|gemüse|obst|birne|beere|kiwi|zucchini|mango|kirsche/i],
+    ['Milch & Eier', /milch|eier|\bei\b|käse|joghurt|quark|butter|sahne|kefir|frischkäse|pudding|mozzarella/i],
+    ['Bäckerei', /brot|brötchen|toast|croissant|baguette|brezel|kuchen|mehl|hefe|gebäck/i],
+    ['Getränke', /wasser|saft|cola|limonade|sprudel|kaffee|tee|smoothie|mate|getränk/i],
+    ['Haushalt', /spülmittel|waschmittel|seife|shampoo|zahnpasta|toilettenpapier|küchenrolle|taschentücher|putzmittel|müllbeutel|papier|schwamm|zahnbürste|reiniger/i],
+    ['Fleisch & Fisch', /fleisch|hähnchen|wurst|schinken|lachs|fisch|salami|hack|steak/i]
+  ];
+  const detectCategory=name=>(categoryRules.find(([,re])=>re.test(name))||['Sonstiges'])[0];
+  function parseProducts(text){
+    text=String(text||'').trim().replace(/^(?:bitte\s+)?(?:ich brauche|wir brauchen|ich benötige|kauf(?:e)?|füge hinzu|setze auf die liste|schreib auf|notiere)\s+/i,'');
+    const parts=text.split(/\s*[,;\n]+\s*|\s+und\s+/i).map(s=>s.trim()).filter(Boolean);
+    const numberWords={ein:'1',eine:'1',einen:'1',einem:'1',zwei:'2',drei:'3',vier:'4',fünf:'5',sechs:'6',sieben:'7',acht:'8',neun:'9',zehn:'10'};
+    const units={x:'×',stück:'Stk.',stücke:'Stk.',packung:'Pkg.',packungen:'Pkg.',paket:'Pkg.',pakete:'Pkg.',kg:'kg',kilo:'kg',g:'g',gramm:'g',l:'l',liter:'l',ml:'ml',flasche:'Fl.',flaschen:'Fl.',dose:'Dosen',dosen:'Dosen',beutel:'Beutel',bund:'Bund',tafeln:'Tafeln',tafel:'Tafeln'};
+    return parts.slice(0,30).map(part=>{
+      part=part.replace(/^(?:noch|auch|bitte)\s+/i,'').replace(/[.!?]+$/,'').trim();
+      const first=part.match(/^(ein|eine|einen|einem|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)\b\s*/i);
+      if(first)part=numberWords[first[1].toLowerCase()]+ ' '+part.slice(first[0].length);
+      let qty='';
+      const match=part.match(/^(\d+(?:[.,]\d+)?)\s*(x|stück(?:e)?|packung(?:en)?|paket(?:e)?|kg|kilo|g|gramm|l|liter|ml|flasche(?:n)?|dose(?:n)?|beutel|bund|tafel(?:n)?)?\s*(.+)$/i);
+      if(match&&match[3]&&/[\p{L}]/u.test(match[3])) {qty=match[1]+(match[2]&&match[2].toLowerCase()!=='x'?' '+(units[match[2].toLowerCase()]||match[2]):'×');part=match[3].trim();}
+      if(!part)return null;
+      return {id:uid(),name:part.slice(0,150).charAt(0).toUpperCase()+part.slice(1,150),qty,category:detectCategory(part),done:false};
+    }).filter(Boolean);
+  }
+  function addProducts(text){const newItems=parseProducts(text);if(!newItems.length)return 0;items=[...newItems,...items];save();render();return newItems.length;}
+  function itemMarkup(x){return `<article class="item ${x.done?'done':''}" data-id="${escapeHTML(x.id)}"><button type="button" class="check" data-action="toggle" aria-label="${x.done?'Als noch offen markieren':'Als gekauft markieren'}: ${escapeHTML(x.name)}" aria-pressed="${x.done}">${x.done?icons.check:''}</button><div class="item-main"><div class="item-name">${escapeHTML(x.name)}</div><span class="item-tag">${escapeHTML(x.category)}</span></div>${x.qty?`<span class="item-qty">${escapeHTML(x.qty)}</span>`:''}<button type="button" class="remove-btn" data-action="delete" aria-label="${escapeHTML(x.name)} entfernen">${icons.trash}</button></article>`;}
+  function render(){
+    const active=items.filter(x=>!x.done),done=items.filter(x=>x.done);
+    $('activeList').innerHTML=active.length?active.map(itemMarkup).join(''):'<div class="empty"><span class="emoji" aria-hidden="true">🛒</span><strong>Dein Korb ist noch leer</strong><p>Schreib etwas auf oder sprich deine Einkaufsliste ein.</p></div>';
+    $('doneList').innerHTML=done.map(itemMarkup).join('');
+    $('doneSection').hidden=!done.length;
+    $('activeTotal').textContent=`(${active.length})`;
+    $('doneTotal').textContent=`(${done.length})`;
+    $('openCount').textContent=active.length;
+    $('heroHeading').textContent=!items.length?'Alles im Blick.':!active.length?'Alles erledigt!':'Bereit für den Einkauf?';
+    $('heroSubtitle').textContent=!items.length?'Deine Liste wartet auf die ersten Produkte.':!active.length?'Super, du hast alles abgehakt.':`${items.length} ${items.length===1?'Produkt':'Produkte'} insgesamt auf deiner Liste.`;
+    const progress=items.length?Math.round(done.length/items.length*100):0;
+    $('progressBar').style.width=progress+'%';$('progress').setAttribute('aria-valuenow',progress);
+  }
+  $('addForm').addEventListener('submit',e=>{e.preventDefault();const added=addProducts(productInput.value);if(added){productInput.value='';toast(added===1?'1 Produkt hinzugefügt':`${added} Produkte hinzugefügt`);productInput.focus();}});
+  const clickItem=e=>{const btn=e.target.closest('[data-action]');if(!btn)return;const container=btn.closest('[data-id]');if(!container)return;const id=container.dataset.id;const index=items.findIndex(x=>x.id===id);if(index<0)return;if(btn.dataset.action==='toggle')items[index].done=!items[index].done;else if(btn.dataset.action==='delete')items.splice(index,1);save();render();};
+  $('activeList').addEventListener('click',clickItem);$('doneList').addEventListener('click',clickItem);
+  $('clearDone').addEventListener('click',()=>{const count=items.filter(x=>x.done).length;if(!count)return;if(!confirm(`${count} erledigte ${count===1?'Produkt':'Produkte'} wirklich entfernen?`))return;items=items.filter(x=>!x.done);save();render();toast('Erledigte Produkte entfernt');});
+  function listAsText(){if(!items.length)return 'Meine Einkaufsliste ist noch leer.';let t='🛒 Meine Einkaufsliste\n';for(const x of items)t+=`${x.done?'☑':'☐'} ${x.qty?x.qty+' ':''}${x.name}\n`;return t.trim();}
+  async function share(){const text=listAsText();try{if(navigator.share){await navigator.share({title:'Meine Einkaufsliste',text});return;}if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);toast('Liste kopiert – jetzt kannst du sie verschicken.');return;}const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();const okay=document.execCommand('copy');ta.remove();if(okay){toast('Liste kopiert – jetzt kannst du sie verschicken.');return;}throw Error('not copied');}catch(e){if(e.name==='AbortError')return;toast('Teilen nicht möglich. Versuche es in einem anderen Browser.');}}
+  $('shareTop').addEventListener('click',share);$('shareBottom').addEventListener('click',share);
+
+  // Dictation: browser speech recognition turns words into actual list items.
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  let recognizer=null,dictating=false,dictationTranscript='',ignoreDictation=false;
+  function finishDictation(){dictating=false;$('dictateBtn').classList.remove('active');$('dictateBtn').setAttribute('aria-pressed','false');$('dictateLabel').textContent='Einkauf diktieren';}
+  $('dictateBtn').addEventListener('click',()=>{
+    if(dictating){ignoreDictation=true;try{recognizer.stop();}catch(e){}finishDictation();toast('Spracheingabe beendet');return;}
+    if(!SpeechRecognition){toast('Spracheingabe wird in diesem Browser nicht unterstützt. Chrome ausprobieren.');return;}
+    dictationTranscript='';ignoreDictation=false;
+    try{
+      recognizer=new SpeechRecognition();recognizer.lang='de-DE';recognizer.continuous=false;recognizer.interimResults=true;recognizer.maxAlternatives=1;
+      recognizer.onresult=e=>{let text='',finalText='';for(let i=0;i<e.results.length;i++){text+=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=e.results[i][0].transcript;}if(finalText)dictationTranscript=finalText;productInput.value=text;};
+      recognizer.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed')toast('Bitte erlaube den Mikrofonzugriff für die Spracheingabe.');else if(e.error==='no-speech')toast('Keine Sprache erkannt. Noch einmal probieren.');else if(e.error!=='aborted')toast('Spracherkennung nicht verfügbar ('+e.error+').');ignoreDictation=true;finishDictation();};
+      recognizer.onend=()=>{finishDictation();if(ignoreDictation)return;const said=dictationTranscript.trim();if(said){const amount=addProducts(said);productInput.value='';toast(amount?`${amount} ${amount===1?'Produkt':'Produkte'} per Sprache hinzugefügt`:'Keine Produkte erkannt');}else if(productInput.value.trim()){toast('Bitte auf Hinzufügen tippen, um den Text zu übernehmen.');}};
+      recognizer.start();dictating=true;$('dictateBtn').classList.add('active');$('dictateBtn').setAttribute('aria-pressed','true');$('dictateLabel').textContent='Höre zu … Stoppen';toast('Jetzt sprechen: „2 Milch, Eier und Brot“');
+    }catch(e){finishDictation();toast('Spracherkennung konnte nicht starten.');}
+  });
+
+  // Saved audio notes: audio blobs in IndexedDB, to avoid filling localStorage.
+  let dbPromise;
+  function getDB(){if(dbPromise)return dbPromise;dbPromise=new Promise((resolve,reject)=>{if(!('indexedDB'in window)){reject(Error('IndexedDB fehlt'));return;}const request=indexedDB.open('korb-und-stimme-notes-v1',1);request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains('notes'))db.createObjectStore('notes',{keyPath:'id'});};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||Error('Speicherfehler'));});return dbPromise;}
+  async function allNotes(){const db=await getDB();return new Promise((resolve,reject)=>{const tx=db.transaction('notes','readonly');const r=tx.objectStore('notes').getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
+  async function putNote(note){const db=await getDB();return new Promise((resolve,reject)=>{const tx=db.transaction('notes','readwrite');tx.objectStore('notes').put(note);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+  async function deleteNote(id){const db=await getDB();return new Promise((resolve,reject)=>{const tx=db.transaction('notes','readwrite');tx.objectStore('notes').delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+  let noteUrls=[];
+  async function renderNotes(){
+    const target=$('memoList');noteUrls.forEach(x=>URL.revokeObjectURL(x));noteUrls=[];
+    let notes;try{notes=await allNotes();}catch(e){target.innerHTML='<div class="memo-empty">Sprachnotizen können in diesem Browser nicht gespeichert werden.</div>';return;}
+    notes.sort((a,b)=>b.time-a.time);$('memoCount').textContent=notes.length+' '+(notes.length===1?'Notiz':'Notizen');target.replaceChildren();
+    if(!notes.length){target.innerHTML='<div class="memo-empty">Noch keine Aufnahme vorhanden.</div>';return;}
+    for(const note of notes){
+      const row=document.createElement('div');row.className='memo-item';
+      const ico=document.createElement('div');ico.className='memo-icon';ico.innerHTML=icons.audio;
+      const body=document.createElement('div');body.className='memo-body';
+      const label=document.createElement('strong');label.textContent='Aufnahme vom '+new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(note.time));
+      const player=document.createElement('audio');player.controls=true;player.preload='none';const url=URL.createObjectURL(note.blob);noteUrls.push(url);player.src=url;
+      const del=document.createElement('button');del.className='memo-delete';del.type='button';del.setAttribute('aria-label','Sprachnotiz löschen');del.innerHTML=icons.trash;
+      del.addEventListener('click',async()=>{if(!confirm('Diese Sprachnotiz löschen?'))return;try{await deleteNote(note.id);await renderNotes();toast('Aufnahme gelöscht');}catch(e){toast('Löschen fehlgeschlagen');}});
+      body.append(label,player);row.append(ico,body,del);target.append(row);
+    }
+  }
+  let mediaRecorder=null,recordingStream=null,audioChunks=[],recStart=0,recTick=null;
+  function recordButtonState(isRecording){$('recordBtn').classList.toggle('active',isRecording);$('recordBtn').classList.toggle('secondary',!isRecording);$('recordBtn').setAttribute('aria-pressed',String(isRecording));$('recordLabel').textContent=isRecording?'Aufnahme stoppen':'Sprachnotiz aufnehmen';clearInterval(recTick);if(isRecording){recTick=setInterval(()=>{const seconds=Math.round((Date.now()-recStart)/1000);$('recordLabel').textContent=`Stoppen · ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;},1000);}}
+  function stopRecording(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop();recordButtonState(false);}}
+  $('recordBtn').addEventListener('click',async()=>{
+    if(mediaRecorder&&mediaRecorder.state==='recording'){stopRecording();return;}
+    if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined'){toast('Audioaufnahme wird hier nicht unterstützt. Bitte Browser mit Mikrofonzugriff verwenden.');return;}
+    try{
+      await getDB();
+      recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const mime=typeof MediaRecorder.isTypeSupported==='function'?['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t)):undefined;
+      mediaRecorder=new MediaRecorder(recordingStream,mime?{mimeType:mime}:undefined);
+      audioChunks=[];
+      mediaRecorder.ondataavailable=e=>{if(e.data.size)audioChunks.push(e.data);};
+      mediaRecorder.onerror=()=>{toast('Bei der Aufnahme ist ein Fehler aufgetreten.');recordButtonState(false);recordingStream?.getTracks().forEach(t=>t.stop());};
+      mediaRecorder.onstop=async()=>{
+        recordButtonState(false);
+        recordingStream?.getTracks().forEach(t=>t.stop());recordingStream=null;
+        const blob=new Blob(audioChunks,{type:mediaRecorder.mimeType||'audio/webm'});audioChunks=[];
+        if(blob.size<100)return;
+        try{await putNote({id:uid(),time:Date.now(),blob});await renderNotes();toast('Sprachnotiz gespeichert');}catch(e){
+          const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='sprachnotiz.webm';link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast('Speichern nicht möglich – Aufnahme wurde heruntergeladen.');
+        }
+      };
+      mediaRecorder.start(1000);recStart=Date.now();recordButtonState(true);toast('Aufnahme läuft. Zum Beenden erneut tippen.');
+    }catch(e){recordingStream?.getTracks().forEach(t=>t.stop());recordingStream=null;recordButtonState(false);toast(e.name==='NotAllowedError'?'Bitte Mikrofonzugriff im Browser erlauben.':'Mikrofon oder Aufnahme nicht verfügbar.');}
+  });
+
+  const blobToDataUrl=blob=>new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>rej(fr.error);fr.readAsDataURL(blob);});
+  function downloadFile(name,text){const blob=new Blob([text],{type:'application/json;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);}
+  $('exportBtn').addEventListener('click',async()=>{
+    try {let notes=[];try{notes=await allNotes();}catch(e){}
+      const exportedNotes=[];for(const x of notes)exportedNotes.push({id:x.id,time:x.time,audio:await blobToDataUrl(x.blob)});
+      const file={app:'korb-und-stimme',version:1,exported:new Date().toISOString(),items,notes:exportedNotes};
+      downloadFile('einkaufsliste-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(file));toast('Backup heruntergeladen');
+    }catch(e){toast('Backup konnte nicht erstellt werden.');}
+  });
+  $('importBtn').addEventListener('click',()=>$('importFile').click());
+  $('importFile').addEventListener('change',async e=>{
+    const file=e.target.files[0];e.target.value='';if(!file)return;
+    try{
+      if(file.size>40*1024*1024)throw Error('Datei zu groß');
+      const data=JSON.parse(await file.text());
+      if(data.app!=='korb-und-stimme'||!Array.isArray(data.items)||!Array.isArray(data.notes)||data.items.length>10000||data.notes.length>500)throw Error('Ungültiges Backup');
+      if(!confirm('Backup laden? Die aktuelle Produktliste wird ersetzt, vorhandene Sprachnotizen bleiben erhalten.'))return;
+      const clean=data.items.filter(x=>x&&typeof x.name==='string').map(x=>({id:uid(),name:x.name.slice(0,150),qty:String(x.qty||'').slice(0,25),category:String(x.category||'Sonstiges').slice(0,40),done:!!x.done}));
+      for(const x of data.notes){if(typeof x.audio!=='string'||!x.audio.startsWith('data:audio/')||x.audio.length>25*1024*1024)continue;const blob=await(await fetch(x.audio)).blob();await putNote({id:uid(),time:Number(x.time)||Date.now(),blob});}
+      items=clean;save();render();await renderNotes();toast('Backup erfolgreich geladen');
+    }catch(err){toast('Backup ungültig oder konnte nicht geladen werden.');}
+  });
+
+  if('serviceWorker'in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  render();renderNotes();
+})();
+</script>
+</body>
+</html>
